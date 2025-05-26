@@ -1,0 +1,75 @@
+// src/server.ts
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+
+import { config } from './config/env';
+import { connectToMongo } from './config/mongo';
+import { errorHandler } from './middlewares/errorHandler.middleware';
+import { handlePreflightHeaders } from './utils/headers';
+
+import authRoutes from './routes/auth.route';
+import userRoutes from './routes/user.route';
+
+const app = express();
+
+// security & body parsing
+app.use(helmet());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// This middleware handles CORS preflight requests and sets CORS headers
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === 'OPTIONS') {
+    handlePreflightHeaders(res);
+    res.sendStatus(200);
+    return;
+  }
+
+  next();
+});
+
+// This handles common requests and sets CORS headers
+app.use(
+  cors({
+    origin: config.cors.origin,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  }),
+);
+
+// health check & routes
+app.get('/api/health', (_, res) => {
+  res.status(200).json({ success: true, message: 'API is healthy' });
+});
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use(errorHandler);
+
+connectToMongo();
+
+// dynamic server start
+if (config.nodeEnv === 'development') {
+  const certDir = path.resolve(process.cwd(), 'certs');
+  const key = fs.readFileSync(path.join(certDir, 'stillness.local-key.pem'));
+  const cert = fs.readFileSync(path.join(certDir, 'stillness.local.pem'));
+
+  https.createServer({ key, cert }, app).listen(config.port, () => {
+    console.log(`✅ HTTPS dev server at https://localhost:${config.port}`);
+  });
+} else {
+  app.listen(config.port, () => {
+    console.log(`🚀 HTTP server running on port ${config.port}`);
+  });
+}
+
+process.on('unhandledRejection', (err: Error) => {
+  console.error('Unhandled Rejection:', err);
+});
