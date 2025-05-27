@@ -1,55 +1,5 @@
-import { Schema, model, Document, Types } from 'mongoose';
-
-interface Address extends Document {
-  _id: Types.ObjectId;
-  userId: Types.ObjectId;
-  country: string;
-  province: string;
-  city: string;
-  postalCode: string;
-  street: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface User extends Document {
-  _id: Types.ObjectId;
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role: 'customer' | 'admin';
-  address: Address;
-  acceptTerms: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const addressSchema = new Schema<Address>(
-  {
-    street: {
-      type: String,
-      required: true,
-    },
-    city: {
-      type: String,
-      required: true,
-    },
-    province: {
-      type: String,
-      required: true,
-    },
-    postalCode: {
-      type: String,
-      required: true,
-    },
-    country: {
-      type: String,
-      required: true,
-    },
-  },
-  { _id: false },
-);
+import { Schema, model } from 'mongoose';
+import { User } from '../types/user.types';
 
 const userSchema = new Schema<User>(
   {
@@ -75,7 +25,6 @@ const userSchema = new Schema<User>(
       enum: ['customer', 'admin'],
       default: 'customer',
     },
-    address: addressSchema,
     acceptTerms: {
       type: Boolean,
       default: false,

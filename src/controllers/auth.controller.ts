@@ -1,19 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 
-import { config } from '../config/env';
+import User from '../models/user.model';
+import Address from '../models/address.model';
+
 import { ApiResponse } from '../types/response.types';
 import { JWTPayload } from '../types/jwtPayload.types';
-import { User as IUser } from '../types/user.types';
+
+import { config } from '../config/env';
+import { UserResponse } from '../types/user.types';
+import { LoginCredentials, RegisterCredentials } from '../types/auth.types';
 import { hashPassword, comparePassword } from '../helpers/password.helper';
 import { signToken } from '../helpers/jwt.helper';
 import { success, fail } from '../helpers/response.helper';
-import { formatUser } from '../helpers/user.helper';
-
-import User from '../models/user.model';
+import { toUserResponse } from '../helpers/user.helper';
 
 export const register = async (
-  req: Request,
-  res: Response<ApiResponse<IUser>>,
+  req: Request<{}, {}, RegisterCredentials>,
+  res: Response<ApiResponse<UserResponse>>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -50,15 +53,15 @@ export const register = async (
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     });
 
-    success(res, formatUser(newUser), 'Registration successful', 201);
+    success(res, toUserResponse(newUser), 'Registration successful', 201);
   } catch (error) {
     next(error);
   }
 };
 
 export const login = async (
-  req: Request,
-  res: Response<ApiResponse<IUser>>,
+  req: Request<{}, {}, LoginCredentials>,
+  res: Response<ApiResponse<UserResponse>>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -90,7 +93,9 @@ export const login = async (
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     });
 
-    success(res, formatUser(user), 'Login successful', 200);
+    const userAddress = await Address.findOne({ userId: user._id });
+
+    success(res, toUserResponse(user, userAddress), 'Login successful', 200);
   } catch (error) {
     next(error);
   }
@@ -98,7 +103,7 @@ export const login = async (
 
 export const checkAuthStatus = async (
   req: Request,
-  res: Response<ApiResponse<IUser>>,
+  res: Response<ApiResponse<UserResponse>>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -106,7 +111,9 @@ export const checkAuthStatus = async (
 
     if (!user) return fail(res, 'User not found', 404);
 
-    success(res, formatUser(user), 'User found', 200);
+    const userAddress = await Address.findOne({ userId: user._id });
+
+    success(res, toUserResponse(user, userAddress), 'User found', 200);
   } catch (error) {
     next(error);
   }
