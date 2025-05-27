@@ -17,3 +17,5 @@ export const createUserSchema = z.object({
   role: z.enum(['user', 'admin']).optional(),
   acceptTerms: z.boolean(),
 });
+
+export const updateUserSchema = createUserSchema.partial();

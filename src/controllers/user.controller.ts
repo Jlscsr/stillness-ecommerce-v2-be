@@ -52,3 +52,32 @@ export const getUserById = async (
     next(error);
   }
 };
+
+export const updateUser = async (
+  req: Request<{ id: string }, {}, Partial<UserResponse>>,
+  res: Response<ApiResponse<UserResponse>>,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { ...updateData },
+      { new: true },
+    );
+
+    if (!user) return fail(res, 'User not found', 404);
+
+    const userAddress = await Address.findOne({ userId: user._id });
+
+    success(
+      res,
+      toUserResponse(user, userAddress),
+      'User updated successfully',
+    );
+  } catch (error) {
+    next(error);
+  }
+};

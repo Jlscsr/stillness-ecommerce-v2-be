@@ -17,6 +17,7 @@ import { handlePreflightHeaders } from './utils/headers';
 
 import authRoutes from './routes/auth.route';
 import userRoutes from './routes/user.route';
+import productRoutes from './routes/product.route';
 
 const app = express();
 
@@ -25,7 +26,6 @@ app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// This middleware handles CORS preflight requests and sets CORS headers
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     handlePreflightHeaders(res);
@@ -36,7 +36,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// This handles common requests and sets CORS headers
 app.use(
   cors({
     origin: config.cors.origin,
@@ -51,11 +50,11 @@ app.get('/api/health', (_, res) => {
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
 app.use(errorHandler);
 
 connectToMongo();
 
-// dynamic server start
 if (config.nodeEnv === 'development') {
   const certDir = path.resolve(process.cwd(), 'certs');
   const key = fs.readFileSync(path.join(certDir, 'stillness.local-key.pem'));

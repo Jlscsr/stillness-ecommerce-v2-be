@@ -1,27 +1,6 @@
 import { Schema, model } from 'mongoose';
 
-import type { Product, Image } from '../types/product.types';
-
-const ImageSchema = new Schema<Image>(
-  {
-    productId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true,
-    },
-    src: {
-      type: String,
-      required: true,
-    },
-    alt: {
-      type: String,
-      required: true,
-    },
-  },
-  {
-    timestamps: true,
-  },
-);
+import type { Product } from '../types/product.types';
 
 const ProductSchema = new Schema<Product>(
   {
@@ -48,8 +27,13 @@ const ProductSchema = new Schema<Product>(
       type: String,
       required: true,
     },
-    images: [ImageSchema],
-    materials: { types: [String], required: true },
+    images: [
+      {
+        src: { type: String, required: true },
+        alt: { type: String, required: true },
+      },
+    ],
+    materials: { type: [String], required: true },
     dimensions: {
       type: String,
       required: true,

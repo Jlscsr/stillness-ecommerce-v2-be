@@ -3,6 +3,8 @@ import * as UserController from '../controllers/user.controller';
 import * as AddressController from '../controllers/address.controller';
 import { isAuthenticated } from '../middlewares/auth.middleware';
 import { authorizedRoles } from '../middlewares/role.middleware';
+import { updateUserSchema } from '../validators/user.validator';
+import { validateFields } from '../middlewares/fieldsValidator.middleware';
 
 const router = Router();
 
@@ -18,6 +20,14 @@ router.get(
   isAuthenticated,
   authorizedRoles('admin'),
   UserController.getUserById,
+);
+
+router.put(
+  '/:id',
+  isAuthenticated,
+  authorizedRoles('customer'),
+  validateFields(updateUserSchema),
+  UserController.updateUser,
 );
 
 router.post(
