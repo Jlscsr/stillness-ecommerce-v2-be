@@ -18,6 +18,7 @@ import { handlePreflightHeaders } from './utils/headers';
 import authRoutes from './routes/auth.route';
 import userRoutes from './routes/user.route';
 import productRoutes from './routes/product.route';
+import cartRoutes from './routes/cart.route';
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.get('/api/health', (_, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
 app.use(errorHandler);
 
 connectToMongo();
