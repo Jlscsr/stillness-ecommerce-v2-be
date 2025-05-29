@@ -100,13 +100,13 @@ export const addToCart = async (
 };
 
 export const updateCartItem = async (
-  req: Request<{ id: string }, {}, CartRequestBody>,
+  req: Request<{ productId: string }, {}, CartRequestBody>,
   res: Response<ApiResponse<any[]>>,
   next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { id } = req.params;
+    const { productId } = req.params;
     const { quantity, priceAtTimeOfAddition } = req.body;
 
     if (!userId) return fail(res, 'User not authenticated', 401);
@@ -116,7 +116,7 @@ export const updateCartItem = async (
     if (!cart) return fail(res, 'Cart not found', 404);
 
     const itemIndex = cart.items.findIndex(
-      (item) => item.productId.toString() === id,
+      (item) => item.productId.toString() === productId,
     );
 
     if (itemIndex === -1) return fail(res, 'Item not found in cart', 404);
@@ -139,13 +139,13 @@ export const updateCartItem = async (
 };
 
 export const removeCartItem = async (
-  req: Request<{ id: string }>,
+  req: Request<{ productId: string }>,
   res: Response<ApiResponse<any[]>>,
   next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { id } = req.params;
+    const { productId } = req.params;
 
     if (!userId) return fail(res, 'User not authenticated', 401);
 
@@ -154,7 +154,7 @@ export const removeCartItem = async (
     if (!cart) return fail(res, 'Cart not found', 404);
 
     const itemIndex = cart.items.findIndex(
-      (item) => item.productId.toString() === id,
+      (item) => item.productId.toString() === productId,
     );
 
     if (itemIndex === -1) return fail(res, 'Item not found in cart', 404);
