@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import * as UserController from '../controllers/user.controller';
-import * as AddressController from '../controllers/address.controller';
 import { isAuthenticated } from '../middlewares/auth.middleware';
 import { authorizedRoles } from '../middlewares/role.middleware';
 import { updateUserSchema } from '../validators/user.validator';
@@ -16,39 +15,25 @@ router.get(
 );
 
 router.get(
-  '/:id',
+  '/me',
   isAuthenticated,
-  authorizedRoles('admin'),
+  authorizedRoles('customer'),
   UserController.getUserById,
 );
 
 router.put(
-  '/:id',
+  '/',
   isAuthenticated,
   authorizedRoles('customer'),
   validateFields(updateUserSchema),
   UserController.updateUser,
 );
 
-router.post(
+router.put(
   '/address',
   isAuthenticated,
   authorizedRoles('customer'),
-  AddressController.addNewAddress,
-);
-
-router.put(
-  '/address/:id',
-  isAuthenticated,
-  authorizedRoles('customer'),
-  AddressController.updateAddress,
-);
-
-router.delete(
-  '/address/:id',
-  isAuthenticated,
-  authorizedRoles('customer'),
-  AddressController.deleteAddress,
+  UserController.updateUserAddress,
 );
 
 export default router;

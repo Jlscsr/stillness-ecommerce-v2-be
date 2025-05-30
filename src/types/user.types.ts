@@ -1,14 +1,9 @@
 import { Document, Types } from 'mongoose';
 export interface Address extends Document {
-  _id: Types.ObjectId;
-  userId: Types.ObjectId;
   country: string;
-  province: string;
   city: string;
   postalCode: string;
   street: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface User {
@@ -25,3 +20,15 @@ export interface User {
 }
 
 export type UserResponse = Omit<User, 'password'>;
+export type UserUpdateRequestBody = {
+  email: string;
+  firstName: string;
+  lastName: string;
+};
+
+export type AddressUpdateRequestBody = {
+  country: string;
+  city: string;
+  postalCode: string;
+  street: string;
+};

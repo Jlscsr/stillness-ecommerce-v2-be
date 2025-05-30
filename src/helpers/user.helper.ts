@@ -1,16 +1,14 @@
 import { UserResponse } from '../types/user.types';
 
-export const toUserResponse = (
-  user: any,
-  address: any = null,
-): UserResponse => {
+export const toUserResponse = (user: any): UserResponse => {
   const { password, __v, ...rest } = user.toObject();
 
   return {
     ...rest,
-    address: address
+    address: user.address
       ? {
-          ...address.toObject(),
+          ...user.address.toObject(),
+          _id: user.address._id.toString(),
         }
       : null,
   } as UserResponse;

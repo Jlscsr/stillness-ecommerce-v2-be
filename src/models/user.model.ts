@@ -1,5 +1,24 @@
 import { Schema, model } from 'mongoose';
-import { User } from '../types/user.types';
+import { User, Address } from '../types/user.types';
+
+const addressSchema = new Schema<Address>({
+  street: {
+    type: String,
+    required: true,
+  },
+  city: {
+    type: String,
+    required: true,
+  },
+  postalCode: {
+    type: String,
+    required: true,
+  },
+  country: {
+    type: String,
+    required: true,
+  },
+});
 
 const userSchema = new Schema<User>(
   {
@@ -19,6 +38,10 @@ const userSchema = new Schema<User>(
     lastName: {
       type: String,
       required: true,
+    },
+    address: {
+      type: addressSchema,
+      default: null,
     },
     role: {
       type: String,

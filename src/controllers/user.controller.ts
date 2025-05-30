@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 
 import User from '../models/user.model';
-import Address from '../models/address.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
-import { UserResponse } from '../types/user.types';
+import {
+  UserResponse,
+  UserUpdateRequestBody,
+  AddressUpdateRequestBody,
+} from '../types/user.types';
 import { toUserResponse } from '../helpers/user.helper';
 
 export const getAllUsers = async (
@@ -18,8 +21,7 @@ export const getAllUsers = async (
 
     const users: UserResponse[] = await Promise.all(
       raw.map(async (user) => {
-        const userAddress = await Address.findOne({ userId: user._id });
-        return toUserResponse(user, userAddress);
+        return toUserResponse(user);
       }),
     );
 
@@ -35,48 +37,66 @@ export const getUserById = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const userId = req.user?.id;
 
-    const user = await User.findById(id);
+    const user = await User.findById(userId);
 
     if (!user) return fail(res, 'User not found', 404);
 
-    const userAddress = await Address.findOne({ userId: user._id });
-
-    success(
-      res,
-      toUserResponse(user, userAddress),
-      'User fetched successfully',
-    );
+    success(res, toUserResponse(user), 'User fetched successfully');
   } catch (error) {
     next(error);
   }
 };
 
 export const updateUser = async (
-  req: Request<{ id: string }, {}, Partial<UserResponse>>,
-  res: Response<ApiResponse<UserResponse>>,
+  req: Request<{}, {}, UserUpdateRequestBody>,
+  res: Response<ApiResponse<any>>,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const userId = req.user?.id;
     const updateData = req.body;
 
     const user = await User.findByIdAndUpdate(
-      id,
+      userId,
       { ...updateData },
       { new: true },
     );
 
     if (!user) return fail(res, 'User not found', 404);
 
-    const userAddress = await Address.findOne({ userId: user._id });
+    success(res, null, 'User updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
 
-    success(
-      res,
-      toUserResponse(user, userAddress),
-      'User updated successfully',
+export const updateUserAddress = async (
+  req: Request<{}, {}, AddressUpdateRequestBody>,
+  res: Response<ApiResponse<any>>,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { country, city, postalCode, street } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        address: {
+          country,
+          city,
+          postalCode,
+          street,
+        },
+      },
+      { new: true },
     );
+
+    if (!user) return fail(res, 'User not found', 404);
+
+    success(res, null, 'User address updated successfully');
   } catch (error) {
     next(error);
   }
