@@ -19,6 +19,8 @@ import authRoutes from './routes/auth.route';
 import userRoutes from './routes/user.route';
 import productRoutes from './routes/product.route';
 import cartRoutes from './routes/cart.route';
+import orderRoutes from './routes/order.route';
+import paypalRoutes from './routes/paypal.route';
 
 const app = express();
 
@@ -53,6 +55,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/paypal', paypalRoutes);
 app.use(errorHandler);
 
 connectToMongo();

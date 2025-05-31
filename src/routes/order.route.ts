@@ -16,17 +16,17 @@ router.get(
 );
 
 router.get(
-  '/:id',
-  isAuthenticated,
-  authorizedRoles('admin'),
-  orderController.getOrderById,
-);
-
-router.get(
   '/user',
   isAuthenticated,
   authorizedRoles('customer'),
   orderController.getOrderByUserId,
+);
+
+router.get(
+  '/:id',
+  isAuthenticated,
+  authorizedRoles('admin'),
+  orderController.getOrderById,
 );
 
 router.post(

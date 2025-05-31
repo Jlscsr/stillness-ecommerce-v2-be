@@ -54,7 +54,17 @@ const orderSchema = new Schema<Order>(
           type: Number,
           required: true,
         },
-        priceAtTimeAddition: {
+        image: {
+          src: {
+            type: String,
+            required: true,
+          },
+          alt: {
+            type: String,
+            default: '',
+          },
+        },
+        priceAtTimeOfAddition: {
           type: Number,
           required: true,
         },

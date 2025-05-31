@@ -18,7 +18,7 @@ export interface OrderItem {
     alt: string;
   };
   quantity: number;
-  priceAtTimeAddition: number;
+  priceAtTimeOfAddition: number;
   total: number;
 }
 

@@ -10,17 +10,25 @@ dotenvConfig({
 const envSchema = z.object({
   // Server
   PORT: z.string().default('5000'),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
+
   // MongoDB
   MONGODB_URI: z.string().min(1, 'MongoDB URI is required'),
-  
+
   // JWT
-  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters long'),
+  JWT_SECRET: z
+    .string()
+    .min(32, 'JWT secret must be at least 32 characters long'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  
+
   // CORS
   CORS_ORIGIN: z.string().default('*'),
+
+  // PAYPAL
+  PAYPAL_SANDBOX_CLIENT_ID: z.string().min(1, 'PayPal Client ID is required'),
+  PAYPAL_SANDBOX_SECRET_KEY_1: z.string().min(1, 'PayPal Secret is required'),
 });
 
 // Validate environment variables
@@ -32,18 +40,26 @@ export const config = {
   port: parseInt(envVars.PORT, 10),
   nodeEnv: envVars.NODE_ENV,
   isProduction: envVars.NODE_ENV === 'production',
-  
+
   // Database
   mongoUri: envVars.MONGODB_URI,
-  
+
   // JWT
   jwt: {
     secret: envVars.JWT_SECRET,
     expiresIn: envVars.JWT_EXPIRES_IN,
   },
-  
+
   // CORS
   cors: {
     origin: envVars.CORS_ORIGIN,
+  },
+
+  // PayPal
+  paypal: {
+    sandbox: {
+      clientId: envVars.PAYPAL_SANDBOX_CLIENT_ID,
+      secret: envVars.PAYPAL_SANDBOX_SECRET_KEY_1,
+    },
   },
 } as const;
