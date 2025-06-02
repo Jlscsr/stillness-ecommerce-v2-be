@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import Order from '../models/order.model';
 import Cart from '../models/cart.model';
 import Product from '../models/product.model';
+import User from '../models/user.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
@@ -22,7 +23,49 @@ export const getAllOrders = async (
   res: Response<ApiResponse<OrderType[]>>,
   next: NextFunction,
 ): Promise<void> => {
-  //
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 });
+
+    if (!orders || orders.length === 0) {
+      return success(res, [], 'No orders found');
+    }
+
+    success(res, orders, 'Orders fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUsersOrders = async (
+  req: Request,
+  res: Response<ApiResponse<OrderType[]>>,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    // Get all the orders for all users
+
+    const orders = await Order.find().sort({ createdAt: -1 });
+    if (!orders || orders.length === 0) {
+      return success(res, [], 'No orders found');
+    }
+
+    const populatedOrders = await Promise.all(
+      orders.map(async (order) => {
+        const user = await User.findById(
+          order.userId,
+          'firstName lastName email',
+        );
+        return {
+          ...order.toJSON(),
+          user,
+        };
+      }),
+    );
+
+    success(res, populatedOrders, 'Orders fetched successfully');
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const getOrderById = async (
@@ -104,19 +147,57 @@ export const createOrder = async (
 };
 
 export const updatePaymentStatus = async (
-  req: Request<{ id: string }, {}, { paymentStatus: 'pending' | 'paid' }>,
+  req: Request<{ orderId: string }, {}, { paymentStatus: 'pending' | 'paid' }>,
   res: Response<ApiResponse<any>>,
   next: NextFunction,
 ): Promise<void> => {
-  //
+  console.log('updatePaymentStatus called');
+  try {
+    const { orderId } = req.params;
+    const { paymentStatus } = req.body;
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { paymentStatus },
+      { new: true },
+    );
+
+    if (!order) {
+      return fail(res, 'Order not found', 404);
+    }
+
+    success(res, null, 'Payment status updated successfully');
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const updateOrderStatus = async (
-  req: Request<{ id: string }, {}, { orderStatus: string }>,
+  req: Request<{ orderId: string }, {}, { orderStatus: string }>,
   res: Response<ApiResponse<any>>,
   next: NextFunction,
 ): Promise<void> => {
-  //
+  try {
+    const { orderId } = req.params;
+    const { orderStatus } = req.body;
+
+    console.log(orderId);
+    console.log(orderStatus);
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { orderStatus },
+      { new: true },
+    );
+
+    if (!order) {
+      return fail(res, 'Order not found', 404);
+    }
+
+    success(res, null, 'Order status updated successfully');
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const cancelOrder = async (

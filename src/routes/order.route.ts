@@ -16,6 +16,13 @@ router.get(
 );
 
 router.get(
+  '/users',
+  isAuthenticated,
+  authorizedRoles('admin'),
+  orderController.getUsersOrders,
+);
+
+router.get(
   '/user',
   isAuthenticated,
   authorizedRoles('customer'),
@@ -38,14 +45,14 @@ router.post(
 );
 
 router.put(
-  '/:id/payment-status',
+  '/:orderId/payment-status',
   isAuthenticated,
   authorizedRoles('admin'),
   orderController.updatePaymentStatus,
 );
 
 router.put(
-  '/:id/order-status',
+  '/:orderId/order-status',
   isAuthenticated,
   authorizedRoles('admin'),
   orderController.updateOrderStatus,

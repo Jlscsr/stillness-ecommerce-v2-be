@@ -17,7 +17,7 @@ router.get(
 router.get(
   '/me',
   isAuthenticated,
-  authorizedRoles('customer'),
+  authorizedRoles('customer', 'admin'),
   UserController.getUserById,
 );
 
