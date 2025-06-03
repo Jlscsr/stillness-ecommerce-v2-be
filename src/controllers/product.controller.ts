@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { Types } from 'mongoose';
 
 import Product from '../models/product.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
-import { ProductRequestBody } from '../types/product.types';
+import { ProductRequestBody, ImageUpload, CloudinaryImage } from '../types/product.types';
+import { uploadImage } from '../utils/cloudinary';
 
 export const getAllProducts = async (
   req: Request,
@@ -45,12 +47,49 @@ export const createProduct = async (
 ): Promise<void> => {
   try {
     const productData = req.body;
-
-    const product = new Product(productData);
-    await product.save();
-
-    success(res, product, 'Product created successfully');
+    
+    // Process image uploads
+    const cloudinaryImages: CloudinaryImage[] = [];
+    
+    // Check if images array exists and is not empty
+    if (productData.images && productData.images.length > 0) {
+      try {
+        // Process each image in the array
+        for (const image of productData.images) {
+          // Check if the image has a src (base64) and alt
+          if (image.src && image.alt) {
+            // Upload to Cloudinary using category/product_name folder structure
+            const uploadResult = await uploadImage(
+              image.src,
+              productData.category,  // First level folder - category
+              productData.name       // Second level folder - product_name
+            );
+            
+            // Create a CloudinaryImage object mapped to match the schema
+            cloudinaryImages.push({
+              public_id: uploadResult.public_id,
+              src: uploadResult.secure_url, // Changed from url to src to match MongoDB schema
+              alt: image.alt,
+            });
+          }
+        }
+      } catch (uploadError) {
+        console.error('Error uploading images to Cloudinary:', uploadError);
+        return fail(res, 'Error uploading images', 500);
+      }
+    }
+    
+    // Create new product with Cloudinary image URLs
+    const newProduct = new Product({
+      ...productData,
+      images: cloudinaryImages, // Replace base64 images with Cloudinary URLs
+    });
+    
+    await newProduct.save();
+    
+    success(res, newProduct, 'Product created successfully');
   } catch (error) {
+    console.error('Error creating product:', error);
     next(error);
   }
 };

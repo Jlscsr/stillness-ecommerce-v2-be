@@ -39,7 +39,7 @@ export const createProductSchema = z.object({
   images: z
     .array(
       z.object({
-        src: z.string().url('Image source must be a valid URL'),
+        src: z.string(),
         alt: z.string().min(1, 'Image alt text is required'),
       }),
     )

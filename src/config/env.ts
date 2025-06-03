@@ -29,6 +29,11 @@ const envSchema = z.object({
   // PAYPAL
   PAYPAL_SANDBOX_CLIENT_ID: z.string().min(1, 'PayPal Client ID is required'),
   PAYPAL_SANDBOX_SECRET_KEY_1: z.string().min(1, 'PayPal Secret is required'),
+  
+  // Cloudinary
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'Cloudinary cloud name is required'),
+  CLOUDINARY_API_KEY: z.string().min(1, 'Cloudinary API key is required'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'Cloudinary API secret is required'),
 });
 
 // Validate environment variables
@@ -61,5 +66,12 @@ export const config = {
       clientId: envVars.PAYPAL_SANDBOX_CLIENT_ID,
       secret: envVars.PAYPAL_SANDBOX_SECRET_KEY_1,
     },
+  },
+  
+  // Cloudinary
+  cloudinary: {
+    cloudName: envVars.CLOUDINARY_CLOUD_NAME,
+    apiKey: envVars.CLOUDINARY_API_KEY,
+    apiSecret: envVars.CLOUDINARY_API_SECRET,
   },
 } as const;
