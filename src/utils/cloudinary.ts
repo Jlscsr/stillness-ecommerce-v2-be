@@ -18,7 +18,7 @@ interface UploadResponse {
  * @param text - The string to convert
  * @returns The snake_case string
  */
-const toSnakeCase = (text: string): string => {
+export const toSnakeCase = (text: string): string => {
   return text.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 };
 
@@ -111,6 +111,27 @@ export const deleteImage = async (publicId: string): Promise<boolean> => {
     return result.result === 'ok';
   } catch (error) {
     console.error('Error deleting from Cloudinary:', error);
+    return false;
+  }
+};
+
+/**
+ * Delete an entire folder from Cloudinary including all nested files
+ * @param folderPath - Path of the folder to delete (e.g., 'stillness-ecommerce-images/category/product_name')
+ * @returns Promise with deletion result
+ */
+export const deleteFolder = async (folderPath: string): Promise<boolean> => {
+  try {
+    // First delete all assets in the folder (required before deleting the folder)
+    const deleteResult = await cloudinary.api.delete_resources_by_prefix(folderPath);
+    
+    // Then delete the empty folder
+    const folderResult = await cloudinary.api.delete_folder(folderPath);
+    
+    console.log(`Deleted folder: ${folderPath}`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting folder ${folderPath} from Cloudinary:`, error);
     return false;
   }
 };

@@ -6,7 +6,7 @@ import Product from '../models/product.model';
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
 import { ProductRequestBody, ImageUpload, CloudinaryImage } from '../types/product.types';
-import { uploadImage } from '../utils/cloudinary';
+import { uploadImage, deleteFolder, toSnakeCase } from '../utils/cloudinary';
 
 export const getAllProducts = async (
   req: Request,
@@ -123,12 +123,30 @@ export const deleteProduct = async (
   try {
     const { id } = req.params;
 
-    const product = await Product.findByIdAndDelete(id);
+    // First, fetch the product to get its category and name
+    const product = await Product.findById(id);
 
     if (!product) return fail(res, 'Product not found', 404);
+    
+    // Delete the product's Cloudinary folder
+    try {
+      // Build the folder path: stillness-ecommerce-images/category/product_name
+      const folderPath = `stillness-ecommerce-images/${toSnakeCase(product.category)}/${toSnakeCase(product.name)}`;
+      
+      // Delete the entire folder
+      await deleteFolder(folderPath);
+      console.log(`Deleted Cloudinary folder for product: ${product.name}`);
+    } catch (cloudinaryError) {
+      console.error('Error deleting product folder from Cloudinary:', cloudinaryError);
+      // Continue with product deletion even if folder deletion fails
+    }
 
-    success(res, null, 'Product deleted successfully');
+    // Now delete the product from the database
+    await Product.findByIdAndDelete(id);
+
+    success(res, null, 'Product and associated images deleted successfully');
   } catch (error) {
+    console.error('Error deleting product:', error);
     next(error);
   }
 };
