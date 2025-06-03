@@ -23,23 +23,20 @@ export const toSnakeCase = (text: string): string => {
 };
 
 /**
- * Upload a base64 image to Cloudinary with organized folder structure
- * @param base64Image - Base64 encoded image
+ * Upload an image to Cloudinary with organized folder structure
+ * @param imageSource - Base64 encoded image or URL to an existing image
  * @param category - Product category (for first level folder)
  * @param productName - Product name (for second level folder)
+ * @param isUrl - Boolean flag indicating if the imageSource is a URL rather than base64
  * @returns Promise with upload result
  */
 export const uploadImage = async (
-  base64Image: string,
+  imageSource: string,
   category?: string,
-  productName?: string
+  productName?: string,
+  isUrl: boolean = false
 ): Promise<UploadResponse> => {
   try {
-    // Remove data:image/format;base64, prefix if it exists
-    const base64WithoutPrefix = base64Image.includes('base64,')
-      ? base64Image.split('base64,')[1]
-      : base64Image;
-
     // Build folder path: stillness-ecommerce-images/category/product_name
     // Start with the main folder
     let folderPath = 'stillness-ecommerce-images';
@@ -59,13 +56,36 @@ export const uploadImage = async (
       }
     }
 
-    const result = await cloudinary.uploader.upload(
-      `data:image/png;base64,${base64WithoutPrefix}`,
-      {
+    let uploadOptions = {
+      folder: folderPath,
+      resource_type: 'image' as 'image', // Type assertion to match Cloudinary's expected literals
+    };
+
+    let result;
+    
+    if (isUrl) {
+      // If we're given a URL, use that directly
+      console.log(`Uploading image from URL to folder: ${folderPath}`);
+      result = await cloudinary.uploader.upload(imageSource, {
         folder: folderPath,
-        resource_type: 'image',
-      }
-    );
+        resource_type: 'image' as "image" // Explicit type assertion to match Cloudinary's expected literal types
+      });
+    } else {
+      // Handle base64 image
+      // Remove data:image/format;base64, prefix if it exists
+      const base64WithoutPrefix = imageSource.includes('base64,')
+        ? imageSource.split('base64,')[1]
+        : imageSource;
+      
+      console.log(`Uploading base64 image to folder: ${folderPath}`);
+      result = await cloudinary.uploader.upload(
+        `data:image/png;base64,${base64WithoutPrefix}`,
+        {
+          folder: folderPath,
+          resource_type: 'image' as "image" // Explicit type assertion to match Cloudinary's expected literal types
+        }
+      );
+    }
 
     return {
       public_id: result.public_id,

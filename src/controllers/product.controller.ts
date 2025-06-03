@@ -5,7 +5,11 @@ import Product from '../models/product.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
-import { ProductRequestBody, ImageUpload, CloudinaryImage } from '../types/product.types';
+import {
+  ProductRequestBody,
+  ImageUpload,
+  CloudinaryImage,
+} from '../types/product.types';
 import { uploadImage, deleteFolder, toSnakeCase } from '../utils/cloudinary';
 
 export const getAllProducts = async (
@@ -47,28 +51,22 @@ export const createProduct = async (
 ): Promise<void> => {
   try {
     const productData = req.body;
-    
-    // Process image uploads
+
     const cloudinaryImages: CloudinaryImage[] = [];
-    
-    // Check if images array exists and is not empty
+
     if (productData.images && productData.images.length > 0) {
       try {
-        // Process each image in the array
         for (const image of productData.images) {
-          // Check if the image has a src (base64) and alt
           if (image.src && image.alt) {
-            // Upload to Cloudinary using category/product_name folder structure
             const uploadResult = await uploadImage(
               image.src,
-              productData.category,  // First level folder - category
-              productData.name       // Second level folder - product_name
+              productData.category,
+              productData.name,
             );
-            
-            // Create a CloudinaryImage object mapped to match the schema
+
             cloudinaryImages.push({
               public_id: uploadResult.public_id,
-              src: uploadResult.secure_url, // Changed from url to src to match MongoDB schema
+              src: uploadResult.secure_url,
               alt: image.alt,
             });
           }
@@ -78,15 +76,14 @@ export const createProduct = async (
         return fail(res, 'Error uploading images', 500);
       }
     }
-    
-    // Create new product with Cloudinary image URLs
+
     const newProduct = new Product({
       ...productData,
-      images: cloudinaryImages, // Replace base64 images with Cloudinary URLs
+      images: cloudinaryImages,
     });
-    
+
     await newProduct.save();
-    
+
     success(res, newProduct, 'Product created successfully');
   } catch (error) {
     console.error('Error creating product:', error);
@@ -103,14 +100,138 @@ export const updateProduct = async (
     const { id } = req.params;
     const productData = req.body;
 
-    const product = await Product.findByIdAndUpdate(id, productData, {
+    const existingProduct = await Product.findById(id);
+    if (!existingProduct) return fail(res, 'Product not found', 404);
+
+    const isImageUpdate = productData.images && productData.images.length > 0;
+
+    let cloudinaryImages: CloudinaryImage[] = [];
+
+    if (isImageUpdate) {
+      const hasNewImages = productData.images.some(
+        (img) => img.src && img.src.startsWith('data:'),
+      );
+
+      if (hasNewImages) {
+        try {
+          const folderPath = `stillness-ecommerce-images/${toSnakeCase(existingProduct.category)}/${toSnakeCase(existingProduct.name)}`;
+          await deleteFolder(folderPath);
+          console.log(
+            `Deleted Cloudinary folder for product update: ${existingProduct.name}`,
+          );
+
+          for (const image of productData.images) {
+            if (image.src && image.src.startsWith('data:')) {
+              const category = productData.category || existingProduct.category;
+              const productName = productData.name || existingProduct.name;
+
+              const uploadResult = await uploadImage(
+                image.src,
+                category,
+                productName,
+              );
+
+              // Create a CloudinaryImage object
+              cloudinaryImages.push({
+                public_id: uploadResult.public_id,
+                src: uploadResult.secure_url,
+                alt: image.alt,
+              });
+            }
+          }
+        } catch (uploadError) {
+          console.error(
+            'Error processing images for product update:',
+            uploadError,
+          );
+          return fail(res, 'Error updating product images', 500);
+        }
+      }
+    }
+
+    const nameChanged =
+      productData.name && productData.name !== existingProduct.name;
+    const categoryChanged =
+      productData.category && productData.category !== existingProduct.category;
+
+    if (
+      (nameChanged || categoryChanged) &&
+      !isImageUpdate &&
+      existingProduct.images.length > 0
+    ) {
+      try {
+        // Get the old and new folder paths
+        const oldFolderPath = `stillness-ecommerce-images/${toSnakeCase(existingProduct.category)}/${toSnakeCase(existingProduct.name)}`;
+        const newCategory = productData.category || existingProduct.category;
+        const newName = productData.name || existingProduct.name;
+
+        console.log(
+          `Moving images from ${oldFolderPath} to a new folder structure based on updated name/category`,
+        );
+
+        cloudinaryImages = [];
+
+        for (const image of existingProduct.images) {
+          // Extract the original image URL
+          const imageUrl = image.src;
+
+          try {
+            // For now, use a simplified approach assuming we have access to the image data
+
+            const uploadResult = await uploadImage(
+              imageUrl,
+              newCategory,
+              newName,
+              true,
+            );
+
+            cloudinaryImages.push({
+              public_id: uploadResult.public_id,
+              src: uploadResult.secure_url,
+              alt: image.alt || newName,
+            });
+          } catch (downloadError) {
+            console.error(
+              `Error processing image during name/category change: ${imageUrl}`,
+              downloadError,
+            );
+          }
+        }
+
+        await deleteFolder(oldFolderPath);
+
+        const updatedProductData = {
+          ...productData,
+          images: cloudinaryImages,
+        };
+      } catch (folderError) {
+        console.error(
+          'Error moving images to new folder structure:',
+          folderError,
+        );
+        return fail(res, 'Error updating product folder structure', 500);
+      }
+    }
+
+    const updateData = {
+      ...productData,
+    };
+
+    if (cloudinaryImages.length > 0) {
+      // @ts-ignore - this is compatible with MongoDB schema
+      updateData.images = cloudinaryImages;
+    }
+
+    // Update the product in the database
+    const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
       new: true,
     }).populate('images');
 
-    if (!product) return fail(res, 'Product not found', 404);
+    if (!updatedProduct) return fail(res, 'Error updating product', 500);
 
-    success(res, product, 'Product updated successfully');
+    success(res, updatedProduct, 'Product updated successfully');
   } catch (error) {
+    console.error('Error updating product:', error);
     next(error);
   }
 };
@@ -123,25 +244,22 @@ export const deleteProduct = async (
   try {
     const { id } = req.params;
 
-    // First, fetch the product to get its category and name
     const product = await Product.findById(id);
 
     if (!product) return fail(res, 'Product not found', 404);
-    
-    // Delete the product's Cloudinary folder
+
     try {
-      // Build the folder path: stillness-ecommerce-images/category/product_name
       const folderPath = `stillness-ecommerce-images/${toSnakeCase(product.category)}/${toSnakeCase(product.name)}`;
-      
-      // Delete the entire folder
+
       await deleteFolder(folderPath);
       console.log(`Deleted Cloudinary folder for product: ${product.name}`);
     } catch (cloudinaryError) {
-      console.error('Error deleting product folder from Cloudinary:', cloudinaryError);
-      // Continue with product deletion even if folder deletion fails
+      console.error(
+        'Error deleting product folder from Cloudinary:',
+        cloudinaryError,
+      );
     }
 
-    // Now delete the product from the database
     await Product.findByIdAndDelete(id);
 
     success(res, null, 'Product and associated images deleted successfully');
