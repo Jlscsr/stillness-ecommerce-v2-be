@@ -10,6 +10,8 @@ import express, {
 import helmet from 'helmet';
 import cors from 'cors';
 
+import { config as defaultConfig } from 'dotenv';
+
 import { config } from './config/env';
 import { connectToMongo } from './config/mongo';
 import { errorHandler } from './middlewares/errorHandler.middleware';
@@ -24,6 +26,8 @@ import reviewRoutes from './routes/review.route';
 import paypalRoutes from './routes/paypal.route';
 
 const app = express();
+
+defaultConfig();
 
 // security & body parsing
 app.use(helmet());
@@ -72,9 +76,9 @@ if (config.nodeEnv === 'development') {
     console.log(`✅ HTTPS dev server at https://localhost:${config.port}`);
   });
 } else {
-  console.log(config.nodeEnv);
-  app.listen(config.port, () => {
-    console.log(`🚀 HTTP server running on port ${config.port}`);
+  console.log(process.env.PORT);
+  app.listen(process.env.PORT, () => {
+    console.log(`🚀 HTTP server running on port ${process.env.PORT}`);
   });
 }
 
