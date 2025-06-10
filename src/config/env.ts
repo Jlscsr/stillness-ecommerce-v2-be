@@ -9,7 +9,7 @@ dotenvConfig({
 // Define schema for environment variables
 const envSchema = z.object({
   // Server
-  PORT: z.string().default('8080'),
+  PORT: z.string(),
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
