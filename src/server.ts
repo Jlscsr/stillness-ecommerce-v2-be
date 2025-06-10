@@ -67,6 +67,8 @@ app.use(errorHandler);
 
 connectToMongo();
 
+console.log('Environment:', config.nodeEnv);
+
 if (config.nodeEnv === 'development') {
   const certDir = path.resolve(process.cwd(), 'certs');
   const key = fs.readFileSync(path.join(certDir, 'stillness.local-key.pem'));
