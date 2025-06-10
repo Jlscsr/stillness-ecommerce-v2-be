@@ -76,8 +76,10 @@ if (config.nodeEnv === 'development') {
     console.log(`✅ HTTPS dev server at https://localhost:${config.port}`);
   });
 } else {
-  console.log(process.env.PORT);
-  app.listen(process.env.PORT, () => {
+  console.log('Railway PORT: ', process.env.PORT);
+  console.log('APP NODE_ENV: ', config.nodeEnv);
+  console.log(config.nodeEnv);
+  app.listen(Number(process.env.PORT), '0.0.0.0', () => {
     console.log(`🚀 HTTP server running on port ${process.env.PORT}`);
   });
 }
