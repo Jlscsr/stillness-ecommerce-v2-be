@@ -50,6 +50,7 @@ export const isAuthenticated = (
     }
 
     const decoded = verifyToken<JWTPayload>(token);
+
     req.user = decoded;
     next();
   } catch (error) {

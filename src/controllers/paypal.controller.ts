@@ -10,10 +10,8 @@ export const createPayPalOrder = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { totalAmount } = req.body; // Ensure this is securely calculated on the server
-    const userId = req.user?.id;
+    const { totalAmount } = req.body;
 
-    // Step 1: Obtain Access Token from PayPal
     const authResponse = await axios({
       url: 'https://api-m.sandbox.paypal.com/v1/oauth2/token',
       method: 'post',
@@ -29,7 +27,6 @@ export const createPayPalOrder = async (
 
     const accessToken = authResponse.data.access_token;
 
-    // Step 2: Create Order
     const orderResponse = await axios({
       url: 'https://api-m.sandbox.paypal.com/v2/checkout/orders',
       method: 'post',

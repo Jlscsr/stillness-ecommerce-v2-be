@@ -1,15 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { Types } from 'mongoose';
 
 import Product from '../models/product.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
-import {
-  ProductRequestBody,
-  ImageUpload,
-  CloudinaryImage,
-} from '../types/product.types';
+import { ProductRequestBody, CloudinaryImage } from '../types/product.types';
 import { uploadImage, deleteFolder, toSnakeCase } from '../utils/cloudinary';
 
 export const getAllProducts = async (
@@ -131,7 +126,6 @@ export const updateProduct = async (
                 productName,
               );
 
-              // Create a CloudinaryImage object
               cloudinaryImages.push({
                 public_id: uploadResult.public_id,
                 src: uploadResult.secure_url,
@@ -160,7 +154,6 @@ export const updateProduct = async (
       existingProduct.images.length > 0
     ) {
       try {
-        // Get the old and new folder paths
         const oldFolderPath = `stillness-ecommerce-images/${toSnakeCase(existingProduct.category)}/${toSnakeCase(existingProduct.name)}`;
         const newCategory = productData.category || existingProduct.category;
         const newName = productData.name || existingProduct.name;
@@ -172,12 +165,9 @@ export const updateProduct = async (
         cloudinaryImages = [];
 
         for (const image of existingProduct.images) {
-          // Extract the original image URL
           const imageUrl = image.src;
 
           try {
-            // For now, use a simplified approach assuming we have access to the image data
-
             const uploadResult = await uploadImage(
               imageUrl,
               newCategory,
@@ -199,11 +189,6 @@ export const updateProduct = async (
         }
 
         await deleteFolder(oldFolderPath);
-
-        const updatedProductData = {
-          ...productData,
-          images: cloudinaryImages,
-        };
       } catch (folderError) {
         console.error(
           'Error moving images to new folder structure:',
@@ -222,7 +207,6 @@ export const updateProduct = async (
       updateData.images = cloudinaryImages;
     }
 
-    // Update the product in the database
     const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
       new: true,
     }).populate('images');
