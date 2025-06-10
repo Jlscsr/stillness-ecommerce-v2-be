@@ -72,6 +72,7 @@ if (config.nodeEnv === 'development') {
     console.log(`✅ HTTPS dev server at https://localhost:${config.port}`);
   });
 } else {
+  console.log(config.nodeEnv);
   app.listen(config.port, () => {
     console.log(`🚀 HTTP server running on port ${config.port}`);
   });
