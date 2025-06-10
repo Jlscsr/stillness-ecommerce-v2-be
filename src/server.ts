@@ -77,7 +77,7 @@ if (config.nodeEnv === 'development') {
   });
 } else {
   console.log('Railway PORT: ', process.env.PORT);
-  console.log('APP NODE_ENV: ', config.nodeEnv);
+  console.log('APP PORT: ', config.port);
   console.log(config.nodeEnv);
   app.listen(Number(process.env.PORT), '0.0.0.0', () => {
     console.log(`🚀 HTTP server running on port ${process.env.PORT}`);
