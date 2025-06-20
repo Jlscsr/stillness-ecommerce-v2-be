@@ -45,8 +45,8 @@ export const createPayPalOrder = async (
           },
         ],
         application_context: {
-          return_url: 'https://localhost:5173/checkout?success=true',
-          cancel_url: 'https://localhost:5173/checkout?success=false',
+          return_url: `${config.cors.origin}/checkout?success=true`,
+          cancel_url: `${config.cors.origin}/checkout?success=false`,
         },
       },
     });
