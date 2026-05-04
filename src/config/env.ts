@@ -9,7 +9,7 @@ dotenvConfig({
 // Define schema for environment variables
 const envSchema = z.object({
   // Server
-  PORT: z.string(),
+  PORT: z.string().default('5000'),
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
@@ -24,16 +24,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
 
   // CORS
-  CORS_ORIGIN: z.string().default('*'),
-
-  // PAYPAL
-  PAYPAL_SANDBOX_CLIENT_ID: z.string().min(1, 'PayPal Client ID is required'),
-  PAYPAL_SANDBOX_SECRET_KEY_1: z.string().min(1, 'PayPal Secret is required'),
-
-  // Cloudinary
-  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'Cloudinary cloud name is required'),
-  CLOUDINARY_API_KEY: z.string().min(1, 'Cloudinary API key is required'),
-  CLOUDINARY_API_SECRET: z.string().min(1, 'Cloudinary API secret is required'),
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
 });
 
 // Validate environment variables
@@ -60,18 +51,4 @@ export const config = {
     origin: envVars.CORS_ORIGIN,
   },
 
-  // PayPal
-  paypal: {
-    sandbox: {
-      clientId: envVars.PAYPAL_SANDBOX_CLIENT_ID,
-      secret: envVars.PAYPAL_SANDBOX_SECRET_KEY_1,
-    },
-  },
-
-  // Cloudinary
-  cloudinary: {
-    cloudName: envVars.CLOUDINARY_CLOUD_NAME,
-    apiKey: envVars.CLOUDINARY_API_KEY,
-    apiSecret: envVars.CLOUDINARY_API_SECRET,
-  },
 } as const;

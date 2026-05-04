@@ -62,7 +62,7 @@ export const getUsersOrders = async (
       }),
     );
 
-    success(res, populatedOrders, 'Orders fetched successfully');
+    success(res, populatedOrders as unknown as OrderType[], 'Orders fetched successfully');
   } catch (error) {
     next(error);
   }

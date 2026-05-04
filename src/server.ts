@@ -10,8 +10,6 @@ import express, {
 import helmet from 'helmet';
 import cors from 'cors';
 
-import { config as defaultConfig } from 'dotenv';
-
 import { config } from './config/env';
 import { connectToMongo } from './config/mongo';
 import { errorHandler } from './middlewares/errorHandler.middleware';
@@ -23,11 +21,8 @@ import productRoutes from './routes/product.route';
 import cartRoutes from './routes/cart.route';
 import orderRoutes from './routes/order.route';
 import reviewRoutes from './routes/review.route';
-import paypalRoutes from './routes/paypal.route';
 
 const app = express();
-
-defaultConfig();
 
 // security & body parsing
 app.use(helmet());
@@ -62,7 +57,6 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/paypal', paypalRoutes);
 app.use(errorHandler);
 
 connectToMongo();
@@ -71,18 +65,24 @@ console.log('Environment:', config.nodeEnv);
 
 if (config.nodeEnv === 'development') {
   const certDir = path.resolve(process.cwd(), 'certs');
-  const key = fs.readFileSync(path.join(certDir, 'stillness.local-key.pem'));
-  const cert = fs.readFileSync(path.join(certDir, 'stillness.local.pem'));
+  const keyPath = path.join(certDir, 'stillness.local-key.pem');
+  const certPath = path.join(certDir, 'stillness.local.pem');
 
-  https.createServer({ key, cert }, app).listen(config.port, () => {
-    console.log(`✅ HTTPS dev server at https://localhost:${config.port}`);
-  });
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    const key = fs.readFileSync(keyPath);
+    const cert = fs.readFileSync(certPath);
+
+    https.createServer({ key, cert }, app).listen(config.port, () => {
+      console.log(`HTTPS dev server running at https://localhost:${config.port}`);
+    });
+  } else {
+    app.listen(config.port, () => {
+      console.log(`HTTP dev server running at http://localhost:${config.port}`);
+    });
+  }
 } else {
-  console.log('Railway PORT: ', process.env.PORT);
-  console.log('APP PORT: ', config.port);
-  console.log(config.nodeEnv);
-  app.listen(Number(process.env.PORT), '0.0.0.0', () => {
-    console.log(`🚀 HTTP server running on port ${process.env.PORT}`);
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`HTTP server running on port ${config.port}`);
   });
 }
 
