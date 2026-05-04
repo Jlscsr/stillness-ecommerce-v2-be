@@ -1,10 +1,14 @@
 import { Document, Types } from 'mongoose';
 
-// Product image data is stored as a URL or local data URL until storage is migrated.
+// Product images keep src/alt compatibility while storage metadata stays optional.
 export interface ProductImage {
   _id?: number;
   src: string;
   alt: string;
+  storageProvider?: 'supabase' | 'cloudinary' | 'external';
+  bucket?: string;
+  path?: string;
+  role?: 'main' | 'gallery';
 }
 
 export interface Product extends Document {
@@ -30,7 +34,8 @@ export interface ProductRequestBody {
   longDescription?: string;
   price: number;
   category: string;
-  images: ProductImage[];
+  images?: ProductImage[];
+  imageAlts?: string[];
   materials: string[];
   dimensions: string;
   stock: number;

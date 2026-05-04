@@ -8,6 +8,10 @@ import {
 } from '../validators/product.validator';
 import { isAuthenticated } from '../middlewares/auth.middleware';
 import { authorizedRoles } from '../middlewares/role.middleware';
+import {
+  parseProductFormData,
+  uploadProductImageFiles,
+} from '../middlewares/productUpload.middleware';
 
 const router = Router();
 
@@ -17,6 +21,8 @@ router.post(
   '/',
   isAuthenticated,
   authorizedRoles('admin'),
+  uploadProductImageFiles,
+  parseProductFormData,
   validateFields(createProductSchema),
   productController.createProduct,
 );
@@ -24,6 +30,8 @@ router.put(
   '/:id',
   isAuthenticated,
   authorizedRoles('admin'),
+  uploadProductImageFiles,
+  parseProductFormData,
   validateFields(updateProductSchema),
   productController.updateProduct,
 );

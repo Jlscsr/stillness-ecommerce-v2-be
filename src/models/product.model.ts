@@ -31,6 +31,16 @@ const ProductSchema = new Schema<Product>(
       {
         src: { type: String, required: true },
         alt: { type: String, required: true },
+        storageProvider: {
+          type: String,
+          enum: ['supabase', 'cloudinary', 'external'],
+        },
+        bucket: { type: String },
+        path: { type: String },
+        role: {
+          type: String,
+          enum: ['main', 'gallery'],
+        },
       },
     ],
     materials: { type: [String], required: true },

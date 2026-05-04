@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const productImageSchema = z.object({
+  src: z.string(),
+  alt: z.string().min(1, 'Image alt text is required'),
+  storageProvider: z.enum(['supabase', 'cloudinary', 'external']).optional(),
+  bucket: z.string().optional(),
+  path: z.string().optional(),
+  role: z.enum(['main', 'gallery']).optional(),
+});
+
 export const createProductSchema = z.object({
   name: z
     .string()
@@ -17,7 +26,7 @@ export const createProductSchema = z.object({
     .min(1, 'Product long description is required')
     .max(1000, 'Product long description must be less than 1000 characters'),
   price: z
-    .number()
+    .coerce.number()
     .min(1, 'Product price is required')
     .max(10000, 'Product price must be less than 10000'),
   category: z
@@ -25,7 +34,7 @@ export const createProductSchema = z.object({
     .min(1, 'Product category is required')
     .max(50, 'Product category must be less than 50 characters'),
   stock: z
-    .number()
+    .coerce.number()
     .min(1, 'Product stock is required')
     .max(100, 'Product stock must be less than 100'),
   materials: z
@@ -37,14 +46,10 @@ export const createProductSchema = z.object({
     .min(1, 'Product dimensions are required')
     .max(50, 'Product dimensions must be less than 50 characters'),
   images: z
-    .array(
-      z.object({
-        src: z.string(),
-        alt: z.string().min(1, 'Image alt text is required'),
-      }),
-    )
-    .min(1, 'At least one image is required')
-    .max(5, 'A maximum of 5 images is allowed'),
+    .array(productImageSchema)
+    .max(5, 'A maximum of 5 images is allowed')
+    .optional(),
+  imageAlts: z.array(z.string()).optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial();

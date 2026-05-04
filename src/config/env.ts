@@ -25,6 +25,15 @@ const envSchema = z.object({
 
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+
+  // Supabase Storage
+  SUPABASE_URL: z.string().url('Supabase URL must be a valid URL'),
+  SUPABASE_SERVICE_ROLE_KEY: z
+    .string()
+    .min(1, 'Supabase service role key is required'),
+  SUPABASE_STORAGE_BUCKET: z
+    .string()
+    .default('stillness-ecommerce-products'),
 });
 
 // Validate environment variables
@@ -51,4 +60,10 @@ export const config = {
     origin: envVars.CORS_ORIGIN,
   },
 
+  // Supabase Storage
+  supabase: {
+    url: envVars.SUPABASE_URL,
+    serviceRoleKey: envVars.SUPABASE_SERVICE_ROLE_KEY,
+    storageBucket: envVars.SUPABASE_STORAGE_BUCKET,
+  },
 } as const;
