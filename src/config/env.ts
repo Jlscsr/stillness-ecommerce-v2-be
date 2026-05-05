@@ -40,6 +40,12 @@ const envSchema = z.object({
 // Validate environment variables
 const envVars = envSchema.parse(process.env);
 
+const parseCommaSeparatedList = (value: string): string[] =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 // Export validated environment variables
 export const config = {
   // Server
@@ -59,7 +65,7 @@ export const config = {
 
   // CORS
   cors: {
-    origin: envVars.CORS_ORIGIN,
+    allowedOrigins: parseCommaSeparatedList(envVars.CORS_ORIGIN),
   },
 
   // Supabase Storage

@@ -43,4 +43,6 @@ const CartSchema = new Schema<Cart>(
   },
 );
 
+CartSchema.index({ userId: 1 });
+
 export default model<Cart>('Cart', CartSchema);

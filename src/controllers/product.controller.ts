@@ -5,7 +5,11 @@ import Product from '../models/product.model';
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
 import { ProductImage, ProductRequestBody } from '../types/product.types';
-import { uploadProductImages } from '../services/supabaseStorage.service';
+import {
+  deleteProductImagePaths,
+  getSupabaseProductImagePaths,
+  uploadProductImages,
+} from '../services/supabaseStorage.service';
 
 const normalizeProductImages = (
   images: ProductRequestBody['images'] = [],
@@ -28,6 +32,16 @@ const getUploadedImageFiles = (req: Request): Express.Multer.File[] =>
 
 const hasImagesField = (productData: ProductRequestBody): boolean =>
   Object.prototype.hasOwnProperty.call(productData, 'images');
+
+const getRemovedSupabaseImagePaths = (
+  currentImages: ProductImage[] = [],
+  nextImages: ProductImage[] = [],
+): string[] => {
+  const currentPaths = getSupabaseProductImagePaths(currentImages);
+  const nextPaths = new Set(getSupabaseProductImagePaths(nextImages));
+
+  return currentPaths.filter((storagePath) => !nextPaths.has(storagePath));
+};
 
 const buildProductImages = async ({
   req,
@@ -148,6 +162,7 @@ export const updateProduct = async (
     delete updateData.images;
     delete updateData.imageAlts;
     const uploadedFiles = getUploadedImageFiles(req);
+    let removedImagePaths: string[] = [];
 
     if (hasImagesField(productData) || uploadedFiles.length > 0) {
       const images = await buildProductImages({
@@ -169,6 +184,10 @@ export const updateProduct = async (
       }
 
       updateData.images = images;
+      removedImagePaths = getRemovedSupabaseImagePaths(
+        existingProduct.images,
+        images,
+      );
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
@@ -176,6 +195,8 @@ export const updateProduct = async (
     });
 
     if (!updatedProduct) return fail(res, 'Error updating product', 500);
+
+    await deleteProductImagePaths(removedImagePaths);
 
     success(res, updatedProduct, 'Product updated successfully');
   } catch (error) {
@@ -196,7 +217,13 @@ export const deleteProduct = async (
 
     if (!product) return fail(res, 'Product not found', 404);
 
-    await Product.findByIdAndDelete(id);
+    const imagePathsToDelete = getSupabaseProductImagePaths(product.images);
+
+    const deletedProduct = await Product.findByIdAndDelete(id);
+
+    if (!deletedProduct) return fail(res, 'Error deleting product', 500);
+
+    await deleteProductImagePaths(imagePathsToDelete);
 
     success(res, null, 'Product deleted successfully');
   } catch (error) {

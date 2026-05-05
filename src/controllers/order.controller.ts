@@ -79,7 +79,28 @@ export const getOrderById = async (
   res: Response<ApiResponse<OrderType>>,
   next: NextFunction,
 ): Promise<void> => {
-  //
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return fail(res, 'Invalid order ID', 400);
+    }
+
+    const orderQuery =
+      userRole === 'admin' ? { _id: id } : { _id: id, userId };
+
+    const order = await Order.findOne(orderQuery);
+
+    if (!order) {
+      return fail(res, 'Order not found', 404);
+    }
+
+    success(res, order, 'Order fetched successfully');
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const getOrderByUserId = async (
@@ -288,5 +309,55 @@ export const cancelOrder = async (
   res: Response<ApiResponse<any>>,
   next: NextFunction,
 ): Promise<void> => {
-  //
+  const session = await mongoose.startSession();
+
+  try {
+    const { id } = req.params;
+    const { reasonOfCancellation } = req.body;
+
+    session.startTransaction();
+
+    const order = await Order.findById(id).session(session);
+
+    if (!order) {
+      await session.abortTransaction();
+      return fail(res, 'Order not found', 404);
+    }
+
+    if (!['pending', 'processing'].includes(order.orderStatus)) {
+      await session.abortTransaction();
+      return fail(
+        res,
+        'Only pending or processing orders can be cancelled',
+        400,
+      );
+    }
+
+    for (const item of order.orderItems) {
+      const stockUpdate = await Product.updateOne(
+        { _id: item.productId },
+        { $inc: { stock: item.quantity } },
+        { session },
+      );
+
+      if (stockUpdate.matchedCount !== 1) {
+        await session.abortTransaction();
+        return fail(res, `Product not found for ${item.name}`, 404);
+      }
+    }
+
+    order.orderStatus = 'cancelled';
+    order.reasonOfCancellation =
+      reasonOfCancellation || 'Order cancelled by admin';
+
+    await order.save({ session });
+    await session.commitTransaction();
+
+    success(res, null, 'Order cancelled successfully');
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    await session.endSession();
+  }
 };

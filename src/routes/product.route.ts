@@ -12,6 +12,7 @@ import {
   parseProductFormData,
   uploadProductImageFiles,
 } from '../middlewares/productUpload.middleware';
+import { uploadRateLimiter } from '../middlewares/rateLimit.middleware';
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.post(
   '/',
   isAuthenticated,
   authorizedRoles('admin'),
+  uploadRateLimiter,
   uploadProductImageFiles,
   parseProductFormData,
   validateFields(createProductSchema),
@@ -30,6 +32,7 @@ router.put(
   '/:id',
   isAuthenticated,
   authorizedRoles('admin'),
+  uploadRateLimiter,
   uploadProductImageFiles,
   parseProductFormData,
   validateFields(updateProductSchema),

@@ -32,7 +32,7 @@ router.get(
 router.get(
   '/:id',
   isAuthenticated,
-  authorizedRoles('admin'),
+  authorizedRoles('customer', 'admin'),
   orderController.getOrderById,
 );
 

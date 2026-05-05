@@ -2,18 +2,14 @@
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
-import express, {
-  type Request,
-  type Response,
-  type NextFunction,
-} from 'express';
+import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 
 import { config } from './config/env';
 import { connectToMongo } from './config/mongo';
 import { errorHandler } from './middlewares/errorHandler.middleware';
-import { handlePreflightHeaders } from './utils/headers';
+import { globalRateLimiter } from './middlewares/rateLimit.middleware';
 
 import authRoutes from './routes/auth.route';
 import userRoutes from './routes/user.route';
@@ -24,28 +20,32 @@ import reviewRoutes from './routes/review.route';
 
 const app = express();
 
+if (config.nodeEnv === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // security & body parsing
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.method === 'OPTIONS') {
-    handlePreflightHeaders(res);
-    res.sendStatus(200);
-    return;
-  }
-
-  next();
-});
-
 app.use(
   cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+      if (!origin || config.cors.allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Origin is not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
+
+app.use('/api', globalRateLimiter);
 
 // health check & routes
 app.get('/api/health', (_, res) => {

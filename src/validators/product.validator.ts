@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { VALID_CATEGORIES } from '../constants/categories';
+
 const productImageSchema = z.object({
   src: z.string(),
   alt: z.string().min(1, 'Image alt text is required'),
@@ -29,10 +31,9 @@ export const createProductSchema = z.object({
     .coerce.number()
     .min(1, 'Product price is required')
     .max(10000, 'Product price must be less than 10000'),
-  category: z
-    .string()
-    .min(1, 'Product category is required')
-    .max(50, 'Product category must be less than 50 characters'),
+  category: z.enum(VALID_CATEGORIES, {
+    errorMap: () => ({ message: 'Product category is invalid' }),
+  }),
   stock: z
     .coerce.number()
     .min(1, 'Product stock is required')

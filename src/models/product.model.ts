@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 
+import { VALID_CATEGORIES } from '../constants/categories';
 import type { Product } from '../types/product.types';
 
 const ProductSchema = new Schema<Product>(
@@ -26,6 +27,7 @@ const ProductSchema = new Schema<Product>(
     category: {
       type: String,
       required: true,
+      enum: VALID_CATEGORIES,
     },
     images: [
       {
@@ -57,5 +59,7 @@ const ProductSchema = new Schema<Product>(
     timestamps: true,
   },
 );
+
+ProductSchema.index({ category: 1 });
 
 export default model<Product>('Product', ProductSchema);

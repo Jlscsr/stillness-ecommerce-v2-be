@@ -4,19 +4,10 @@ import type { Express } from 'express';
 
 import { config } from '../config/env';
 import { supabase } from '../config/supabase';
+import { isValidCategory, VALID_CATEGORIES } from '../constants/categories';
 import type { ProductImage } from '../types/product.types';
 
-export const PRODUCT_CATEGORY_FOLDERS = [
-  'collections',
-  'decor',
-  'gifts',
-  'tea',
-  'apparel',
-  'home',
-  'limited_edition',
-  'seasonal',
-  'wellness',
-] as const;
+export const PRODUCT_CATEGORY_FOLDERS = VALID_CATEGORIES;
 
 const categoryFolderMap: Record<string, string> = {
   apparel: 'apparel',
@@ -55,14 +46,25 @@ export const normalizeForStorageMatch = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 
-export const resolveProductCategoryFolder = (category: string): string => {
+const resolveKnownProductCategoryFolder = (category: string): string | null => {
   const normalizedCategory = normalizeForStorageMatch(category).replace(
     /_/g,
     ' ',
   );
 
-  return categoryFolderMap[normalizedCategory] || 'collections';
+  return categoryFolderMap[normalizedCategory] || null;
 };
+
+export const resolveProductCategoryFolder = (category: string): string => {
+  return resolveKnownProductCategoryFolder(category) || 'collections';
+};
+
+const slugifyStorageSegment = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 export const getPublicProductImageUrl = (storagePath: string): string => {
   const { data } = supabase.storage
@@ -72,34 +74,102 @@ export const getPublicProductImageUrl = (storagePath: string): string => {
   return data.publicUrl;
 };
 
+export const getSupabaseProductImagePath = (
+  image: Pick<ProductImage, 'bucket' | 'path' | 'src' | 'storageProvider'>,
+): string | null => {
+  if (
+    image.path &&
+    (image.storageProvider === 'supabase' ||
+      image.bucket === config.supabase.storageBucket)
+  ) {
+    return image.path;
+  }
+
+  try {
+    const imageUrl = new URL(image.src);
+    const supabaseUrl = new URL(config.supabase.url);
+
+    if (imageUrl.host !== supabaseUrl.host) {
+      return null;
+    }
+
+    const publicPathPrefix = `/storage/v1/object/public/${config.supabase.storageBucket}/`;
+
+    if (!imageUrl.pathname.startsWith(publicPathPrefix)) {
+      return null;
+    }
+
+    return decodeURIComponent(imageUrl.pathname.slice(publicPathPrefix.length));
+  } catch {
+    return null;
+  }
+};
+
+export const getSupabaseProductImagePaths = (
+  images: ProductImage[] = [],
+): string[] => {
+  const paths = images
+    .map((image) => getSupabaseProductImagePath(image))
+    .filter((storagePath): storagePath is string => Boolean(storagePath));
+
+  return [...new Set(paths)];
+};
+
+export const deleteProductImagePaths = async (
+  storagePaths: string[],
+): Promise<void> => {
+  const uniqueStoragePaths = [...new Set(storagePaths)].filter(Boolean);
+
+  if (uniqueStoragePaths.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.storage
+    .from(config.supabase.storageBucket)
+    .remove(uniqueStoragePaths);
+
+  if (error) {
+    throw new Error(`Supabase image delete failed: ${error.message}`);
+  }
+};
+
 const sanitizeFileName = (fileName: string): string => {
   const extension = path.extname(fileName).toLowerCase();
   const baseName = path.basename(fileName, extension);
-  const safeBaseName = normalizeForStorageMatch(baseName) || 'product_image';
+  const safeBaseName = slugifyStorageSegment(baseName) || 'product-image';
+  const safeExtension = extension.replace(/[^a-z0-9.]/g, '');
 
-  return `${safeBaseName}${extension}`;
+  return `${safeBaseName}${safeExtension}`;
 };
 
 const buildProductImagePath = ({
   productId,
-  role,
+  productName,
+  category,
   fileName,
-  index,
 }: {
   productId: string;
-  role: 'main' | 'gallery';
+  productName: string;
+  category: string;
   fileName: string;
-  index: number;
 }): string => {
+  const folder = resolveKnownProductCategoryFolder(category);
+
+  if (!folder || !isValidCategory(folder)) {
+    throw new Error(`Invalid product image category: ${category}`);
+  }
+
+  const productSlug = slugifyStorageSegment(productName) || productId;
   const safeFileName = sanitizeFileName(fileName);
   const timestamp = Date.now();
 
-  return `products/${productId}/${role}/${timestamp}-${index}-${safeFileName}`;
+  return `${folder}/${productSlug}/${timestamp}-${safeFileName}`;
 };
 
 export const uploadProductImages = async ({
   productId,
   productName,
+  category,
   files,
   imageAlts = [],
   existingImageCount = 0,
@@ -110,9 +180,9 @@ export const uploadProductImages = async ({
     const role = existingImageCount === 0 && index === 0 ? 'main' : 'gallery';
     const storagePath = buildProductImagePath({
       productId,
-      role,
+      productName,
+      category,
       fileName: file.originalname,
-      index,
     });
 
     const { error } = await supabase.storage

@@ -11,8 +11,8 @@ export const createUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z
     .string()
-    .min(6, 'Password must be at least 6 characters long')
-    .max(20, 'Password must be less than 20 characters'),
+    .min(8, 'Password must be at least 8 characters long')
+    .max(72, 'Password must be less than 72 characters'),
   firstName: z
     .string()
     .min(1, 'First name is required')
@@ -24,6 +24,13 @@ export const createUserSchema = z.object({
   role: z.enum(['user', 'admin']).optional(),
   acceptTerms: z.boolean(),
 });
+
+export const loginSchema = z
+  .object({
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(1, 'Password is required'),
+  })
+  .strict();
 
 export const updateUserSchema = z
   .object({
@@ -48,7 +55,7 @@ export const changePasswordSchema = z
     currentPassword: z.string().min(1, 'Current password is required'),
     newPassword: z
       .string()
-      .min(6, 'Password must be at least 6 characters long')
-      .max(20, 'Password must be less than 20 characters'),
+      .min(8, 'Password must be at least 8 characters long')
+      .max(72, 'Password must be less than 72 characters'),
   })
   .strict();

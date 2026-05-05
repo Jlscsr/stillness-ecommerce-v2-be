@@ -115,4 +115,7 @@ const orderSchema = new Schema<Order>(
   },
 );
 
+orderSchema.index({ userId: 1, orderStatus: 1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
+
 export default model<Order>('Order', orderSchema);
