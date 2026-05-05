@@ -50,6 +50,10 @@ const orderSchema = new Schema<Order>(
           ref: 'Product',
           required: true,
         },
+        name: {
+          type: String,
+          required: true,
+        },
         quantity: {
           type: Number,
           required: true,
@@ -77,6 +81,7 @@ const orderSchema = new Schema<Order>(
     paymentMethod: {
       type: String,
       required: true,
+      // TODO: enable 'online' when payment provider is integrated.
       enum: ['cod', 'online'],
     },
     paymentStatus: {

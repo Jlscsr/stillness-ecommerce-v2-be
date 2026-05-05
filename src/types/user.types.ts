@@ -21,9 +21,11 @@ export interface User {
 
 export type UserResponse = Omit<User, 'password'>;
 export type UserUpdateRequestBody = {
-  email: string;
-  firstName: string;
-  lastName: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  address?: AddressUpdateRequestBody;
+  currentPassword?: string;
 };
 
 export type AddressUpdateRequestBody = {
@@ -31,4 +33,9 @@ export type AddressUpdateRequestBody = {
   city: string;
   postalCode: string;
   street: string;
+};
+
+export type ChangePasswordRequestBody = {
+  currentPassword: string;
+  newPassword: string;
 };

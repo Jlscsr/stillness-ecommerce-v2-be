@@ -19,7 +19,6 @@ export interface Cart extends Document {
 }
 
 export interface CartRequestBody {
-  productId: Types.ObjectId;
+  productId: string;
   quantity: number;
-  priceAtTimeOfAddition: number;
 }

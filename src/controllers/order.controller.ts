@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 
 import Order from '../models/order.model';
 import Cart from '../models/cart.model';
@@ -8,6 +9,7 @@ import User from '../models/user.model';
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
 import type {
+  OrderItem,
   OrderRequestBody,
   Order as OrderType,
 } from '../types/order.types';
@@ -62,7 +64,11 @@ export const getUsersOrders = async (
       }),
     );
 
-    success(res, populatedOrders as unknown as OrderType[], 'Orders fetched successfully');
+    success(
+      res,
+      populatedOrders as unknown as OrderType[],
+      'Orders fetched successfully',
+    );
   } catch (error) {
     next(error);
   }
@@ -104,14 +110,58 @@ export const createOrder = async (
   try {
     const orderData = req.body;
     const userId = req.user?.id;
+    if (!userId) return fail(res, 'User not authenticated', 401);
 
-    const order = new Order({
-      ...orderData,
-      userId,
-      orderNumber: generateOrderNumber(),
-      orderStatus: 'pending',
-      reasonOfCancellation: null,
-    });
+    const orderItems: OrderItem[] = [];
+    let totalAmount = 0;
+    const stockChecks = new Map<
+      string,
+      { name: string; stock: number; requestedQuantity: number }
+    >();
+
+    for (const item of orderData.orderItems) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return fail(res, 'Product not found', 404);
+      }
+
+      const stockCheckKey = product._id.toString();
+      const stockCheck = stockChecks.get(stockCheckKey);
+
+      if (stockCheck) {
+        stockCheck.requestedQuantity += item.quantity;
+      } else {
+        stockChecks.set(stockCheckKey, {
+          name: product.name,
+          stock: product.stock,
+          requestedQuantity: item.quantity,
+        });
+      }
+
+      const priceAtTimeOfAddition = product.price;
+      const itemTotal = priceAtTimeOfAddition * item.quantity;
+      const image = product.images?.[0] ?? { src: '', alt: product.name };
+
+      orderItems.push({
+        productId: product._id,
+        name: product.name,
+        image: {
+          src: image.src,
+          alt: image.alt || product.name,
+        },
+        quantity: item.quantity,
+        priceAtTimeOfAddition,
+        total: itemTotal,
+      });
+
+      totalAmount += itemTotal;
+    }
+
+    for (const stockCheck of stockChecks.values()) {
+      if (stockCheck.stock < stockCheck.requestedQuantity) {
+        return fail(res, `Insufficient stock for ${stockCheck.name}`, 400);
+      }
+    }
 
     const cart = await Cart.findOne({ userId });
 
@@ -119,25 +169,58 @@ export const createOrder = async (
       return fail(res, 'Cart not found', 404);
     }
 
-    cart.items = [];
-    cart.totalAmount = 0;
-    await cart.save();
+    const session = await mongoose.startSession();
 
-    await order.save();
+    try {
+      session.startTransaction();
 
-    // Reduce stock for each product in the order
-    for (const item of order.orderItems) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return fail(res, 'Product not found', 404);
+      const [order] = await Order.create(
+        [
+          {
+            shippingInformation: orderData.shippingInformation,
+            orderItems,
+            paymentMethod: orderData.paymentMethod,
+            paymentStatus: 'pending',
+            totalAmount,
+            userId,
+            orderNumber: generateOrderNumber(),
+            orderStatus: 'pending',
+            reasonOfCancellation: null,
+          },
+        ],
+        { session },
+      );
+
+      for (const item of order.orderItems) {
+        const stockUpdate = await Product.updateOne(
+          { _id: item.productId, stock: { $gte: item.quantity } },
+          { $inc: { stock: -item.quantity } },
+          { session },
+        );
+
+        if (stockUpdate.modifiedCount !== 1) {
+          await session.abortTransaction();
+          return fail(res, `Insufficient stock for ${item.name}`, 400);
+        }
       }
 
-      if (product.stock < item.quantity) {
-        return fail(res, 'Insufficient stock for product', 400);
+      const cartUpdate = await Cart.updateOne(
+        { userId },
+        { $set: { items: [], totalAmount: 0 } },
+        { session },
+      );
+
+      if (cartUpdate.matchedCount !== 1) {
+        await session.abortTransaction();
+        return fail(res, 'Cart not found', 404);
       }
 
-      product.stock -= item.quantity;
-      await product.save();
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      await session.endSession();
     }
 
     success(res, null, 'Order created successfully');

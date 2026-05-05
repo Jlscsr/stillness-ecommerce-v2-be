@@ -16,6 +16,7 @@ const envSchema = z.object({
 
   // MongoDB
   MONGODB_URI: z.string().min(1, 'MongoDB URI is required'),
+  MONGODB_DB_NAME: z.string().default('stillness-ecommerce'),
 
   // JWT
   JWT_SECRET: z
@@ -48,6 +49,7 @@ export const config = {
 
   // Database
   mongoUri: envVars.MONGODB_URI,
+  mongoDbName: envVars.MONGODB_DB_NAME,
 
   // JWT
   jwt: {

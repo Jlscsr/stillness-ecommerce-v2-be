@@ -1,10 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 
 import Cart from '../models/cart.model';
+import Product from '../models/product.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
 import { CartRequestBody } from '../types/cart.types';
+
+const calculateCartTotal = (
+  items: { quantity: number; priceAtTimeOfAddition: number }[],
+): number => {
+  return items.reduce(
+    (total, item) => total + item.quantity * item.priceAtTimeOfAddition,
+    0,
+  );
+};
 
 export const getCartItems = async (
   req: Request,
@@ -61,9 +71,14 @@ export const addToCart = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { productId, quantity, priceAtTimeOfAddition } = req.body;
+    const { productId, quantity } = req.body;
 
     if (!userId) return fail(res, 'User not authenticated', 401);
+
+    const product = await Product.findById(productId);
+    if (!product) return fail(res, 'Product not found', 404);
+
+    const priceAtTimeOfAddition = product.price;
 
     const cart = await Cart.findOne({ userId });
 
@@ -89,7 +104,7 @@ export const addToCart = async (
       cart.items.push({ productId, quantity, priceAtTimeOfAddition } as any);
     }
 
-    cart.totalAmount += quantity * priceAtTimeOfAddition;
+    cart.totalAmount = calculateCartTotal(cart.items);
 
     await cart.save();
 
@@ -107,9 +122,12 @@ export const updateCartItem = async (
   try {
     const userId = req.user?.id;
     const { productId } = req.params;
-    const { quantity, priceAtTimeOfAddition } = req.body;
+    const { quantity } = req.body;
 
     if (!userId) return fail(res, 'User not authenticated', 401);
+
+    const product = await Product.findById(productId);
+    if (!product) return fail(res, 'Product not found', 404);
 
     const cart = await Cart.findOne({ userId });
 
@@ -122,13 +140,9 @@ export const updateCartItem = async (
     if (itemIndex === -1) return fail(res, 'Item not found in cart', 404);
 
     cart.items[itemIndex].quantity = quantity;
-    cart.items[itemIndex].priceAtTimeOfAddition = priceAtTimeOfAddition;
+    cart.items[itemIndex].priceAtTimeOfAddition = product.price;
 
-    // Recalculate total amount
-    cart.totalAmount = cart.items.reduce(
-      (total, item) => total + item.quantity * item.priceAtTimeOfAddition,
-      0,
-    );
+    cart.totalAmount = calculateCartTotal(cart.items);
 
     await cart.save();
 
