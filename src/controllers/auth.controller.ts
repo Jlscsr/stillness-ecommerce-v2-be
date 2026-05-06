@@ -8,8 +8,21 @@ import { JWTPayload } from '../types/jwtPayload.types';
 import { config } from '../config/env';
 import { LoginCredentials, RegisterCredentials } from '../types/auth.types';
 import { hashPassword, comparePassword } from '../helpers/password.helper';
-import { signToken } from '../helpers/jwt.helper';
+import { getJwtCookieMaxAge, signToken } from '../helpers/jwt.helper';
 import { success, fail } from '../helpers/response.helper';
+
+const getAuthCookieOptions = () => ({
+  httpOnly: config.nodeEnv === 'production' ? true : false,
+  secure: config.nodeEnv === 'production' ? true : false,
+  sameSite: config.nodeEnv === 'production' ? ('none' as const) : ('lax' as const),
+  maxAge: getJwtCookieMaxAge(),
+});
+
+const getClearAuthCookieOptions = () => ({
+  httpOnly: config.nodeEnv === 'production' ? true : false,
+  secure: config.nodeEnv === 'production' ? true : false,
+  sameSite: config.nodeEnv === 'production' ? ('none' as const) : ('lax' as const),
+});
 
 export const register = async (
   req: Request<{}, {}, RegisterCredentials>,
@@ -43,12 +56,7 @@ export const register = async (
 
     const token = signToken(payload);
 
-    res.cookie('token', token, {
-      httpOnly: config.nodeEnv === 'production' ? true : false,
-      secure: config.nodeEnv === 'production' ? true : false,
-      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
-    });
+    res.cookie('token', token, getAuthCookieOptions());
 
     success(res, null, 'Registration successful', 201);
   } catch (error) {
@@ -64,7 +72,7 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
       return fail(res, 'Invalid email or password', 401);
@@ -83,12 +91,7 @@ export const login = async (
     };
     const token = signToken(payload);
 
-    res.cookie('token', token, {
-      httpOnly: config.nodeEnv === 'production' ? true : false,
-      secure: config.nodeEnv === 'production' ? true : false,
-      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
-    });
+    res.cookie('token', token, getAuthCookieOptions());
 
     success(res, null, 'Login successful', 200);
   } catch (error) {
@@ -105,7 +108,6 @@ export const checkAuthStatus = async (
     const user = req.user?.id ? await User.findById(req.user.id) : null;
 
     if (!user) return fail(res, 'User not found', 404);
-    console.log('user', user);
 
     success(res, { role: user.role }, 'User found', 200);
   } catch (error) {
@@ -119,11 +121,7 @@ export const logout = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    res.clearCookie('token', {
-      httpOnly: config.nodeEnv === 'production' ? true : false,
-      secure: config.nodeEnv === 'production' ? true : false,
-      sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
-    });
+    res.clearCookie('token', getClearAuthCookieOptions());
 
     success(res, null, 'Logout successful');
   } catch (error) {

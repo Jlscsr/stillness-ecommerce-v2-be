@@ -37,4 +37,6 @@ export const ReviewSchema = new Schema<Review>(
   },
 );
 
+ReviewSchema.index({ productId: 1, createdAt: -1 });
+
 export default model<Review>('Review', ReviewSchema);

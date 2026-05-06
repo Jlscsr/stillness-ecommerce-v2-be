@@ -4,8 +4,75 @@ import Product from '../models/product.model';
 
 import { success, fail } from '../helpers/response.helper';
 import { ApiResponse } from '../types/response.types';
-import { ProductRequestBody, CloudinaryImage } from '../types/product.types';
-import { uploadImage, deleteFolder, toSnakeCase } from '../utils/cloudinary';
+import { ProductImage, ProductRequestBody } from '../types/product.types';
+import {
+  deleteProductImagePaths,
+  getSupabaseProductImagePaths,
+  uploadProductImages,
+} from '../services/supabaseStorage.service';
+
+const normalizeProductImages = (
+  images: ProductRequestBody['images'] = [],
+): ProductImage[] =>
+  images
+    .filter((image) => image.src && image.alt)
+    .map((image) => ({
+      src: image.src,
+      alt: image.alt,
+      ...(image.storageProvider
+        ? { storageProvider: image.storageProvider }
+        : {}),
+      ...(image.bucket ? { bucket: image.bucket } : {}),
+      ...(image.path ? { path: image.path } : {}),
+      ...(image.role ? { role: image.role } : {}),
+    }));
+
+const getUploadedImageFiles = (req: Request): Express.Multer.File[] =>
+  Array.isArray(req.files) ? req.files : [];
+
+const hasImagesField = (productData: ProductRequestBody): boolean =>
+  Object.prototype.hasOwnProperty.call(productData, 'images');
+
+const getRemovedSupabaseImagePaths = (
+  currentImages: ProductImage[] = [],
+  nextImages: ProductImage[] = [],
+): string[] => {
+  const currentPaths = getSupabaseProductImagePaths(currentImages);
+  const nextPaths = new Set(getSupabaseProductImagePaths(nextImages));
+
+  return currentPaths.filter((storagePath) => !nextPaths.has(storagePath));
+};
+
+const buildProductImages = async ({
+  req,
+  productId,
+  productName,
+  category,
+  existingImageCount = 0,
+}: {
+  req: Request;
+  productId: string;
+  productName: string;
+  category: string;
+  existingImageCount?: number;
+}): Promise<ProductImage[]> => {
+  const productData = req.body as ProductRequestBody;
+  const files = getUploadedImageFiles(req);
+  const existingImages = normalizeProductImages(productData.images);
+  const uploadedImages =
+    files.length > 0
+      ? await uploadProductImages({
+          productId,
+          productName,
+          category,
+          files,
+          imageAlts: productData.imageAlts,
+          existingImageCount: existingImages.length || existingImageCount,
+        })
+      : [];
+
+  return [...existingImages, ...uploadedImages];
+};
 
 export const getAllProducts = async (
   req: Request,
@@ -13,7 +80,7 @@ export const getAllProducts = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const products = await Product.find().populate('images');
+    const products = await Product.find();
 
     success(res, products, 'Products fetched successfully');
   } catch (error) {
@@ -29,7 +96,7 @@ export const getProductById = async (
   try {
     const { id } = req.params;
 
-    const product = await Product.findById(id).populate('images');
+    const product = await Product.findById(id);
 
     if (!product) return fail(res, 'Product not found', 404);
 
@@ -47,36 +114,29 @@ export const createProduct = async (
   try {
     const productData = req.body;
 
-    const cloudinaryImages: CloudinaryImage[] = [];
-
-    if (productData.images && productData.images.length > 0) {
-      try {
-        for (const image of productData.images) {
-          if (image.src && image.alt) {
-            const uploadResult = await uploadImage(
-              image.src,
-              productData.category,
-              productData.name,
-            );
-
-            cloudinaryImages.push({
-              public_id: uploadResult.public_id,
-              src: uploadResult.secure_url,
-              alt: image.alt,
-            });
-          }
-        }
-      } catch (uploadError) {
-        console.error('Error uploading images to Cloudinary:', uploadError);
-        return fail(res, 'Error uploading images', 500);
-      }
-    }
-
     const newProduct = new Product({
       ...productData,
-      images: cloudinaryImages,
+      images: [],
     });
 
+    const images = await buildProductImages({
+      req,
+      productId: newProduct._id.toString(),
+      productName: productData.name,
+      category: productData.category,
+    });
+
+    if (images.length === 0) {
+      fail(res, 'At least one product image is required', 400);
+      return;
+    }
+
+    if (images.length > 5) {
+      fail(res, 'A maximum of 5 images is allowed', 400);
+      return;
+    }
+
+    newProduct.images = images;
     await newProduct.save();
 
     success(res, newProduct, 'Product created successfully');
@@ -98,120 +158,45 @@ export const updateProduct = async (
     const existingProduct = await Product.findById(id);
     if (!existingProduct) return fail(res, 'Product not found', 404);
 
-    const isImageUpdate = productData.images && productData.images.length > 0;
+    const updateData: Partial<ProductRequestBody> = { ...productData };
+    delete updateData.images;
+    delete updateData.imageAlts;
+    const uploadedFiles = getUploadedImageFiles(req);
+    let removedImagePaths: string[] = [];
 
-    let cloudinaryImages: CloudinaryImage[] = [];
+    if (hasImagesField(productData) || uploadedFiles.length > 0) {
+      const images = await buildProductImages({
+        req,
+        productId: id,
+        productName: productData.name || existingProduct.name,
+        category: productData.category || existingProduct.category,
+        existingImageCount: existingProduct.images?.length || 0,
+      });
 
-    if (isImageUpdate) {
-      const hasNewImages = productData.images.some(
-        (img) => img.src && img.src.startsWith('data:'),
+      if (images.length === 0) {
+        fail(res, 'At least one product image is required', 400);
+        return;
+      }
+
+      if (images.length > 5) {
+        fail(res, 'A maximum of 5 images is allowed', 400);
+        return;
+      }
+
+      updateData.images = images;
+      removedImagePaths = getRemovedSupabaseImagePaths(
+        existingProduct.images,
+        images,
       );
-
-      if (hasNewImages) {
-        try {
-          const folderPath = `stillness-ecommerce-images/${toSnakeCase(existingProduct.category)}/${toSnakeCase(existingProduct.name)}`;
-          await deleteFolder(folderPath);
-          console.log(
-            `Deleted Cloudinary folder for product update: ${existingProduct.name}`,
-          );
-
-          for (const image of productData.images) {
-            if (image.src && image.src.startsWith('data:')) {
-              const category = productData.category || existingProduct.category;
-              const productName = productData.name || existingProduct.name;
-
-              const uploadResult = await uploadImage(
-                image.src,
-                category,
-                productName,
-              );
-
-              cloudinaryImages.push({
-                public_id: uploadResult.public_id,
-                src: uploadResult.secure_url,
-                alt: image.alt,
-              });
-            }
-          }
-        } catch (uploadError) {
-          console.error(
-            'Error processing images for product update:',
-            uploadError,
-          );
-          return fail(res, 'Error updating product images', 500);
-        }
-      }
-    }
-
-    const nameChanged =
-      productData.name && productData.name !== existingProduct.name;
-    const categoryChanged =
-      productData.category && productData.category !== existingProduct.category;
-
-    if (
-      (nameChanged || categoryChanged) &&
-      !isImageUpdate &&
-      existingProduct.images.length > 0
-    ) {
-      try {
-        const oldFolderPath = `stillness-ecommerce-images/${toSnakeCase(existingProduct.category)}/${toSnakeCase(existingProduct.name)}`;
-        const newCategory = productData.category || existingProduct.category;
-        const newName = productData.name || existingProduct.name;
-
-        console.log(
-          `Moving images from ${oldFolderPath} to a new folder structure based on updated name/category`,
-        );
-
-        cloudinaryImages = [];
-
-        for (const image of existingProduct.images) {
-          const imageUrl = image.src;
-
-          try {
-            const uploadResult = await uploadImage(
-              imageUrl,
-              newCategory,
-              newName,
-              true,
-            );
-
-            cloudinaryImages.push({
-              public_id: uploadResult.public_id,
-              src: uploadResult.secure_url,
-              alt: image.alt || newName,
-            });
-          } catch (downloadError) {
-            console.error(
-              `Error processing image during name/category change: ${imageUrl}`,
-              downloadError,
-            );
-          }
-        }
-
-        await deleteFolder(oldFolderPath);
-      } catch (folderError) {
-        console.error(
-          'Error moving images to new folder structure:',
-          folderError,
-        );
-        return fail(res, 'Error updating product folder structure', 500);
-      }
-    }
-
-    const updateData = {
-      ...productData,
-    };
-
-    if (cloudinaryImages.length > 0) {
-      // @ts-ignore - this is compatible with MongoDB schema
-      updateData.images = cloudinaryImages;
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
       new: true,
-    }).populate('images');
+    });
 
     if (!updatedProduct) return fail(res, 'Error updating product', 500);
+
+    await deleteProductImagePaths(removedImagePaths);
 
     success(res, updatedProduct, 'Product updated successfully');
   } catch (error) {
@@ -232,21 +217,15 @@ export const deleteProduct = async (
 
     if (!product) return fail(res, 'Product not found', 404);
 
-    try {
-      const folderPath = `stillness-ecommerce-images/${toSnakeCase(product.category)}/${toSnakeCase(product.name)}`;
+    const imagePathsToDelete = getSupabaseProductImagePaths(product.images);
 
-      await deleteFolder(folderPath);
-      console.log(`Deleted Cloudinary folder for product: ${product.name}`);
-    } catch (cloudinaryError) {
-      console.error(
-        'Error deleting product folder from Cloudinary:',
-        cloudinaryError,
-      );
-    }
+    const deletedProduct = await Product.findByIdAndDelete(id);
 
-    await Product.findByIdAndDelete(id);
+    if (!deletedProduct) return fail(res, 'Error deleting product', 500);
 
-    success(res, null, 'Product and associated images deleted successfully');
+    await deleteProductImagePaths(imagePathsToDelete);
+
+    success(res, null, 'Product deleted successfully');
   } catch (error) {
     console.error('Error deleting product:', error);
     next(error);

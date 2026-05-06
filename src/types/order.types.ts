@@ -22,6 +22,11 @@ export interface OrderItem {
   total: number;
 }
 
+export interface OrderItemRequestBody {
+  productId: string;
+  quantity: number;
+}
+
 export interface Order extends Document {
   userId: Types.ObjectId;
   orderNumber: string;
@@ -44,16 +49,7 @@ export interface Order extends Document {
 
 export interface OrderRequestBody {
   shippingInformation: ShippingInformation;
-  orderItems: OrderItem[];
-  paymentMethod: 'cod' | 'online';
-  paymentStatus: 'pending' | 'paid';
-  orderStatus:
-    | 'pending'
-    | 'confirmed'
-    | 'processing'
-    | 'shipped'
-    | 'delivered'
-    | 'cancelled';
+  orderItems: OrderItemRequestBody[];
+  paymentMethod: 'cod';
   reasonOfCancellation?: string;
-  totalAmount: number;
 }

@@ -50,6 +50,10 @@ const orderSchema = new Schema<Order>(
           ref: 'Product',
           required: true,
         },
+        name: {
+          type: String,
+          required: true,
+        },
         quantity: {
           type: Number,
           required: true,
@@ -77,6 +81,7 @@ const orderSchema = new Schema<Order>(
     paymentMethod: {
       type: String,
       required: true,
+      // TODO: enable 'online' when payment provider is integrated.
       enum: ['cod', 'online'],
     },
     paymentStatus: {
@@ -109,5 +114,8 @@ const orderSchema = new Schema<Order>(
     timestamps: true,
   },
 );
+
+orderSchema.index({ userId: 1, orderStatus: 1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
 
 export default model<Order>('Order', orderSchema);
