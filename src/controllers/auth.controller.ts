@@ -108,7 +108,6 @@ export const checkAuthStatus = async (
     const user = req.user?.id ? await User.findById(req.user.id) : null;
 
     if (!user) return fail(res, 'User not found', 404);
-    console.log('user', user);
 
     success(res, { role: user.role }, 'User found', 200);
   } catch (error) {

@@ -61,7 +61,7 @@ app.use(errorHandler);
 
 connectToMongo();
 
-console.log('Environment:', config.nodeEnv);
+console.info('Environment:', config.nodeEnv);
 
 if (config.nodeEnv === 'development') {
   const certDir = path.resolve(process.cwd(), 'certs');
@@ -73,16 +73,16 @@ if (config.nodeEnv === 'development') {
     const cert = fs.readFileSync(certPath);
 
     https.createServer({ key, cert }, app).listen(config.port, () => {
-      console.log(`HTTPS dev server running at https://localhost:${config.port}`);
+      console.info(`HTTPS dev server running at https://localhost:${config.port}`);
     });
   } else {
     app.listen(config.port, () => {
-      console.log(`HTTP dev server running at http://localhost:${config.port}`);
+      console.info(`HTTP dev server running at http://localhost:${config.port}`);
     });
   }
 } else {
   app.listen(config.port, '0.0.0.0', () => {
-    console.log(`HTTP server running on port ${config.port}`);
+    console.info(`HTTP server running on port ${config.port}`);
   });
 }
 

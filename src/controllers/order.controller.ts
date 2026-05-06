@@ -255,7 +255,6 @@ export const updatePaymentStatus = async (
   res: Response<ApiResponse<any>>,
   next: NextFunction,
 ): Promise<void> => {
-  console.log('updatePaymentStatus called');
   try {
     const { orderId } = req.params;
     const { paymentStatus } = req.body;
@@ -284,9 +283,6 @@ export const updateOrderStatus = async (
   try {
     const { orderId } = req.params;
     const { orderStatus } = req.body;
-
-    console.log(orderId);
-    console.log(orderStatus);
 
     const order = await Order.findByIdAndUpdate(
       orderId,
